@@ -1,4 +1,3 @@
-
 import os
 import httpx
 from fastapi import FastAPI, HTTPException
@@ -9,14 +8,14 @@ import google.generativeai as genai
 import logging
 import asyncio
 
-# ロギングの設宁E
+# ロギングの設定
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# .envファイルから環墁E��数を読み込む
+# .envファイルから環境変数を読み込む
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
-# FastAPIアプリケーションのインスタンスを作�E
+# FastAPIアプリケーションのインスタンスを作成
 app = FastAPI()
 
 # --- グローバル変数 ---
@@ -25,7 +24,7 @@ available_gemini_model = None
 @app.on_event("startup")
 async def startup_event():
     """
-    アプリケーション起動時に、利用可能なGeminiモチE��を取得すめE
+    アプリケーション起動時に、利用可能なGeminiモデルを取得する
     """
     global available_gemini_model
     try:
@@ -34,9 +33,9 @@ async def startup_event():
         if not models:
             raise RuntimeError("No models found that support 'generateContent'.")
         
-        # モチE��名でソートし、最新のモチE��を取征E
+        # モデル名でソートし、最新のモデルを取得
         latest_models = sorted(models, key=lambda m: m.name, reverse=True)
-        available_gemini_model = latest_models.name
+        available_gemini_model = latest_models[0].name
         logger.info(f"Successfully found a suitable Gemini model: {available_gemini_model}")
 
     except Exception as e:
@@ -44,44 +43,44 @@ async def startup_event():
         available_gemini_model = "gemini-1.0-pro"
         logger.warning(f"Using fallback Gemini model: {available_gemini_model}")
 
-# 静的ファイル�E�ETML, CSS, JS�E�を配信するための設宁E
+# 静的ファイル（HTML, CSS, JS）を配信するための設定
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-# Gemini APIキーを設宁E
+# Gemini APIキーを設定
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
-    raise ValueError("GEMINI_API_KEYが見つかりません、E)
+    raise ValueError("GEMINI_API_KEYが見つかりません。")
 genai.configure(api_key=GEMINI_API_KEY)
 
-# 国土交通省APIのエンド�Eイントとキーを設宁E
+# 国土交通省APIのエンドポイントとキーを設定
 MLIT_API_ENDPOINT = "https://www.mlit-data.jp/api/v1/graphql"
 MLIT_API_KEY = os.getenv("MLIT_API_KEY")
 if not MLIT_API_KEY:
-    raise ValueError("MLIT_API_KEYが見つかりません、E)
+    raise ValueError("MLIT_API_KEYが見つかりません。")
 
-# プロキシ設定を環墁E��数から読み込む
+# プロキシ設定を環境変数から読み込む
 HTTP_PROXY = os.getenv("HTTP_PROXY")
 HTTPS_PROXY = os.getenv("HTTPS_PROXY")
 proxies = {"http://": HTTP_PROXY, "https://": HTTPS_PROXY} if HTTP_PROXY and HTTPS_PROXY else None
 
-# リクエスト�EチE��のモチE��を定義
+# リクエストのモデルを定義
 class QueryRequest(BaseModel):
     question: str
 
-# プロンプトのチE��プレーチE
+# プロンプトのテンプレート
 PROMPT_TEMPLATE = """
-以下�E自然言語�E質問を、国土交通省チE�EタプラチE��フォームのGraphQL APIクエリに変換してください、E
-ユーザーの質啁E {question}
+以下の自然言語の質問を、国土交通省のGraphQL APIクエリに変換してください、
+ユーザーの質問: {question}
 ---
-生�Eされるクエリは、dataCatalog APIを呼び出す形式にしてください、E
+生成されるクエリは、dataCatalog APIを呼び出す形式にしてください、
 """
 
 @app.post("/api/query")
 async def query_data(request: QueryRequest):
     logger.info("API endpoint /api/query called!")
     if not available_gemini_model:
-        raise HTTPException(status_code=503, detail="Gemini model is not available. Please check the server logs.")
+        raise HTTPException(status_code=503, detail="Geminiモデルが利用できません。サーバーログを確認してください。")
         
     try:
         model = genai.GenerativeModel(available_gemini_model)
@@ -134,4 +133,3 @@ async def query_data(request: QueryRequest):
 async def read_root():
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url="/static/index.html")
-
